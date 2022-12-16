@@ -1,64 +1,74 @@
-INPUT_FILE_PATH = "input/d14s1.txt"
+INPUT_FILE_PATH = "input/d14.txt"
 
 import sys
 
 def main():
     input = parse_input()
     print("Part 1 = ", simulation(input))
-    print("Part 2 = ", simulation_with_floor(input))
+    print("Part 2 = ", simulation_with_inf_floor(input))
 
 def simulation(input:list):
-    grid = create_grid(input)
+    grid, y_max = create_grid(input)
     units = 0
     cont = True
     while cont:
-        cont = add_one_unit_sand(grid)
+        cont = add_one_unit_sand(grid, y_max)
         units += 1
     #print_grid(input, grid)
     return units-1
 
-def simulation_with_floor(input:list):
-    grid = create_grid(input)
-    add_floor(input, grid)
-    print_grid(input, grid)
-    cont = True
+def simulation_with_inf_floor(input:list):
+    grid, y_max = create_grid(input)
     units = 0
-    while grid.get((500, 0)) == '.':
-        cont = add_one_unit_sand(grid)
+    while grid.get((500, 0)) == None:
+        add_one_unit_sand_with_inf_floor(grid, y_max)
         units += 1
     #print_grid(input, grid)
     return units
 
-def add_one_unit_sand(grid):
+def add_one_unit_sand(grid: dict, y_max:int):
     source = (500, 0)
     current = source
     cont = True
     while cont:
-        current, cont = get_next_pos(current, grid)
+        current, cont, inside_grid = next_pos(current, grid, y_max)
     if current != None:
-        assert grid.get(current) == '.'
+        assert grid.get(current) == None
+        grid[current] = 'o'
+    return inside_grid
+
+def add_one_unit_sand_with_inf_floor(grid: dict, y_max:int, with_floor:bool=False):
+    source = (500, 0)
+    current = source
+    cont = True
+    while cont:
+        current, cont, inside_grid = next_pos(current, grid, y_max)
+    if current != None:
+        assert grid.get(current) == None
         grid[current] = 'o'
     return current != None
 
-def get_next_pos(current:tuple, grid:dict):
+def next_pos(current:tuple, grid:dict, y_max:int):
     (x, y) = current
     next = (x, y+1)
-    if grid.get(next) == None:
-        return None, False
-    if grid.get(next) == '.':
-        return next, True
-    if grid.get(next) == '#' or grid.get(next) == 'o':
-        # try go to left
-        left = (x-1, y+1)
-        if grid.get(left) == '#' or grid.get(left) == 'o':
-            #try to go right
-            right = (x+1, y+1)
-            if grid.get(right) == '#' or grid.get(right) == 'o':
-                return current, False
-            else:
-                return right, True
-        else:
-            return left, True
+    if next[1] >= y_max:
+        return current, False, False
+    if is_air(next, grid):
+        return next, True, True
+    if is_air(get_left(next), grid):
+        return get_left(next), True, True
+    if is_air(get_right(next), grid):
+        return get_right(next), True, True
+    return current, False, True
+
+def is_air(pos:tuple, grid:dict):
+    return grid.get(pos) == None
+
+def get_left(pos:tuple):
+    return (pos[0]-1, pos[1])
+
+def get_right(pos:tuple):
+    return (pos[0]+1, pos[1])
 
 def grid_size(input:list):
     x_max = 0
@@ -72,7 +82,7 @@ def grid_size(input:list):
         (x, y) = max(row,key=lambda item:item[1])
         y_max = max(y, y_max)
 
-    return x_max, x_min, y_max+2
+    return x_max, x_min, y_max
 
 def create_grid(input:list):
     x_max, x_min, y_max = grid_size(input)
@@ -82,9 +92,7 @@ def create_grid(input:list):
         for x in range(x_min, x_max+1):
             if (x,y) in lines:
                 grid[(x,y)] = '#'
-            else:
-                grid[(x,y)] = '.'
-    return grid
+    return grid, y_max+2
 
 def add_floor(input:list, grid:dict):
     x_max, x_min, y_max = grid_size(input)
@@ -94,10 +102,16 @@ def add_floor(input:list, grid:dict):
 
 def print_grid(input:list, grind:dict):
     x_max, x_min, y_max = grid_size(input)
+    x_max += 10
+    y_max += 3
+    x_min -= 10
     for y in range(0, y_max+1):
         row = ""
         for x in range(x_min, x_max+1):
-            row = row + grind.get((x,y))
+            val = grind.get((x,y))
+            if val == None:
+                val = '.'
+            row = row + val
         print(row)
 
 
@@ -134,7 +148,6 @@ def parse_input():
     with open(INPUT_FILE_PATH) as f:
         i1 = list(map(lambda s: s.strip().split(" -> "), f.readlines()))
         return list(map(lambda l: list(map(lambda s: tuple(map(int, s.split(","))), l)), i1))
-
 
 if __name__ == "__main__":
    main()
